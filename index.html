@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Research Paper AI Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Patrick+Hand&display=swap" rel="stylesheet"/>
+<style>
+/* a little human touch: handwritten font, softer colours, imperfect borders */
+:root {
+  /* softer, warmer palette to feel hand-picked */
+  --bg: #f4f1ea;
+  --surface: #ffffff;
+  --surface2: #faf6f0;
+  --border: #ccc5b9;
+  --accent: #a27b5c;
+  --accent2: #d4a373;
+  --green: #6a994e;
+  --yellow: #f4d35e;
+  --red: #e76f51;
+  --text: #333333;
+  --text2: #555555;
+  --text3: #777777;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Patrick Hand', cursive;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+/* ── Layout ── */
+.app { display: flex; min-height: 100vh; }
+.sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; flex-shrink: 0; display: flex; flex-direction: column; }
+.main { flex: 1; overflow: auto; }
+
+/* ── Sidebar ── */
+.logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.logo-icon { font-size: 28px; }
+.logo-title { font-size: 15px; font-weight: 700; color: var(--text); margin-top: 6px; line-height: 1.2; }
+.logo-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.nav-section { padding: 0 12px; margin-bottom: 8px; }
+.nav-label { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; padding: 0 8px; margin-bottom: 4px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text2); transition: all 0.15s; }
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: rgba(59,130,246,0.15); color: var(--accent); }
+.nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+.paper-list { flex: 1; overflow-y: auto; padding: 0 12px; }
+.paper-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; border: 1px solid transparent; transition: all 0.15s; }
+.paper-item:hover { background: var(--surface2); border-color: var(--border); }
+.paper-item.active { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); }
+.paper-name { font-size: 12px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.paper-meta { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.paper-analyzed { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 4px; }
+
+/* ── Header ── */
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; }
+.page-title { font-size: 16px; font-weight: 600; }
+.status-badge { font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 500; background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+
+/* ── Content ── */
+.content { padding: 28px; max-width: 1100px; }
+
+/* ── Upload area ── */
+.upload-zone { border: 2px dashed var(--border); border-radius: 16px; padding: 48px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface2); }
+.upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(59,130,246,0.05); }
+.upload-icon { font-size: 48px; margin-bottom: 16px; }
+.upload-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.upload-sub { font-size: 13px; color: var(--text3); }
+.upload-input { display: none; }
+
+/* ── Or divider ── */
+.or-row { display: flex; align-items: center; gap: 16px; margin: 20px 0; }
+.or-line { flex: 1; height: 1px; background: var(--border); }
+.or-text { font-size: 12px; color: var(--text3); }
+
+/* ── Text area ── */
+.text-area { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; color: var(--text); font-family: var(--mono); font-size: 12px; resize: vertical; min-height: 140px; outline: none; transition: border-color 0.2s; }
+.text-area:focus { border-color: var(--accent); }
+
+/* ── Buttons ── */
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 8px; font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: #2563eb; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Cards ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 20px; }
+.card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.card-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 20px; }
+
+/* ── Score grid ── */
+.scores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.score-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.score-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 8px; }
+.score-value { font-size: 22px; font-weight: 700; font-family: var(--mono); }
+.score-bar-track { height: 4px; background: var(--border); border-radius: 4px; margin: 8px 0; }
+.score-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+.score-note { font-size: 11px; color: var(--text3); line-height: 1.4; }
+
+/* ── Verdict banner ── */
+.verdict { border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.verdict.accept { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); }
+.verdict.revise { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+.verdict.reject { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); }
+.verdict-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
+.verdict-text { font-size: 18px; font-weight: 700; margin-top: 4px; }
+
+/* ── Keywords ── */
+.kw-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
+.kw-tag { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); color: var(--accent); cursor: default; transition: all 0.15s; }
+.kw-tag:hover { background: rgba(59,130,246,0.2); }
+
+/* ── Topics ── */
+.topic-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.topic-row:last-child { border-bottom: none; }
+.topic-num { font-family: var(--mono); font-size: 11px; color: var(--text3); min-width: 28px; padding-top: 2px; }
+.topic-label { font-size: 13px; font-weight: 600; color: var(--accent2); margin-bottom: 4px; }
+.topic-words { font-size: 11px; color: var(--text3); }
+
+/* ── Domain bars ── */
+.domain-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.domain-name { font-size: 12px; color: var(--text); min-width: 200px; }
+.domain-bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.domain-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 4px; }
+.domain-pct { font-family: var(--mono); font-size: 11px; color: var(--text3); min-width: 40px; text-align: right; }
+
+/* ── Summary box ── */
+.summary-box { background: var(--surface2); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; padding: 16px 20px; font-size: 13px; line-height: 1.8; color: var(--text); }
+
+/* ── Contributions/Limitations ── */
+.list-item { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.5; }
+.list-item:last-child { border-bottom: none; }
+.list-num { font-family: var(--mono); font-size: 11px; color: var(--text3); min-width: 20px; padding-top: 2px; }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--surface2); padding: 4px; border-radius: 10px; width: fit-content; }
+.tab { padding: 7px 16px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text3); transition: all 0.15s; }
+.tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+
+/* ── Loading ── */
+.loader { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; gap: 16px; }
+.spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-text { font-size: 13px; color: var(--text3); }
+.loader-steps { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+/* ── Alert ── */
+.alert { padding: 12px 16px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; }
+.alert-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+.alert-success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; }
+
+/* ── Metadata table ── */
+.meta-table { width: 100%; }
+.meta-row { display: flex; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.meta-row:last-child { border-bottom: none; }
+.meta-key { color: var(--text3); min-width: 100px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding-top: 2px; }
+.meta-val { color: var(--text); }
+
+/* ── Strengths/Weaknesses ── */
+.sw-item { display: flex; gap: 10px; padding: 8px 0; font-size: 13px; line-height: 1.5; }
+.sw-icon { font-size: 14px; min-width: 20px; }
+
+/* ── Sections detected ── */
+.sections-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 3px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; font-size: 11px; color: var(--text2); }
+
+/* ── Empty state ── */
+.empty { text-align: center; padding: 80px 20px; color: var(--text3); }
+.empty-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.4; }
+.empty-title { font-size: 18px; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+.empty-sub { font-size: 13px; }
+
+.methods-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+.methods-label { font-size: 12px; color: var(--text3); margin-right: 4px; }
+
+/* human touch helpers */
+.handwritten { font-family: 'Patrick Hand', cursive; }
+.btn { border-style: dashed; }
+.logo-title { font-family: 'Patrick Hand', cursive; }
+footer.footer { text-align: center; padding: 12px; font-size: 12px; color: var(--text2); }
+.card { box-shadow: 2px 2px 5px rgba(0,0,0,0.08); transform: rotate(-0.3deg); }
+.topbar, .nav-item, .paper-item { transition: transform 0.1s; }
+.topbar:hover, .nav-item:hover, .paper-item:hover { transform: rotate(0.2deg); }
+
+/* responsive */
+@media(max-width: 768px) {
+  .sidebar { display: none; }
+  .content { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">🔬</div>
+      <div class="logo-title">Research Paper<br>Analyzer ✏️</div>
+      <div class="logo-sub"></div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Tools</div>
+      <div class="nav-item active" onclick="showView('upload')">
+        <span class="icon">📤</span> Upload your paper
+      </div>
+      <div class="nav-item" onclick="showView('analyze')">
+        <span class="icon">🧠</span> Analyze
+      </div>
+      <div class="nav-item" onclick="showView('compare')">
+        <span class="icon">⚖️</span> Compare
+      </div>
+    </div>
+
+    <div class="nav-section" style="flex:1; display:flex; flex-direction:column;">
+      <div class="nav-label">Loaded Papers (<span id="paper-count">0</span>)</div>
+      <div class="paper-list" id="paper-list"></div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="page-title handwritten" id="page-title">Upload your paper</div>
+      <div class="status-badge" id="status-badge">● Ready</div>
+    </div>
+
+    <div class="content" id="content-area">
+      <!-- Upload View -->
+      <div id="view-upload">
+        <div id="alert-box"></div>
+
+        <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()"
+             ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event)">
+          <div class="upload-icon">📄</div>
+          <div class="upload-title handwritten">Hey there, drop your paper here!</div>
+          <div class="upload-sub">PDF or TXT – anything up to about 20 MB</div>
+          <input type="file" class="upload-input" id="file-input" accept=".pdf,.txt" onchange="handleFile(event)"/>
+        </div>
+
+        <div class="or-row">
+          <div class="or-line"></div>
+          <div class="or-text">or paste text</div>
+          <div class="or-line"></div>
+        </div>
+
+        <textarea class="text-area" id="paste-text" placeholder="Paste abstract or full paper text here...&#10;&#10;Minimum 200 characters required."></textarea>
+        <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
+          <button class="btn btn-primary" onclick="uploadText()">
+            <span>🚀</span> Analyze Text
+          </button>
+          <input type="text" id="paste-title" placeholder="Paper title (optional)"
+                 style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--text); font-family:var(--sans); font-size:13px; flex:1; outline:none;"/>
+        </div>
+
+      </div>
+
+      <!-- Analyze View -->
+      <div id="view-analyze" style="display:none;">
+        <div id="analysis-content">
+          <div class="empty">
+            <div class="empty-icon">🧪</div>
+            <div class="empty-title">No Paper Loaded</div>
+            <div class="empty-sub">Upload a paper first, then click Analyze</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compare View -->
+      <div id="view-compare" style="display:none;">
+        <div class="empty">
+          <div class="empty-icon">⚖️</div>
+          <div class="empty-title">Paper Comparison</div>
+          <div class="empty-sub">Load 2+ papers then use the API endpoint<br><code style="font-family:var(--mono); background:var(--surface2); padding:4px 8px; border-radius:4px; font-size:12px;">GET /api/compare?ids=id1,id2</code></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────
+const API = 'http://localhost:5000/api';
+let currentPaperId = null;
+let papers = [];
+
+// ── Navigation ────────────────────────────────────────────────
+function showView(name) {
+  ['upload', 'analyze', 'compare'].forEach(v => {
+    document.getElementById(`view-${v}`).style.display = v === name ? 'block' : 'none';
+  });
+  const titles = { upload: 'Upload your paper', analyze: 'Analysis Results', compare: 'Compare Papers' };
+  document.getElementById('page-title').textContent = titles[name];
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => {
+    if (el.textContent.trim().toLowerCase().includes(name)) el.classList.add('active');
+  });
+}
+
+// ── Drag & Drop ───────────────────────────────────────────────
+function dragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag'); }
+function dragLeave() { document.getElementById('drop-zone').classList.remove('drag'); }
+function dropFile(e) {
+  e.preventDefault();
+  dragLeave();
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+// ── Upload file ───────────────────────────────────────────────
+async function processFile(file) {
+  setStatus('Uploading...', 'loading');
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch(`${API}/upload`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    showAlert(`✅ "${data.filename}" uploaded (${data.word_count.toLocaleString()} words)`, 'success');
+    setStatus('Ready', 'ok');
+    await refreshPapers();
+    await analyzeAuto(data.paper_id);
+  } catch (err) {
+    showAlert(`❌ ${err.message}`, 'error');
+    setStatus('Error', 'error');
+  }
+}
+
+// ── Upload pasted text ────────────────────────────────────────
+async function uploadText() {
+  const text = document.getElementById('paste-text').value.trim();
+  const title = document.getElementById('paste-title').value.trim();
+  if (!text || text.length < 200) {
+    showAlert('❌ Please paste at least 200 characters of paper text', 'error');
+    return;
+  }
+  setStatus('Processing...', 'loading');
+  try {
+    const res = await fetch(`${API}/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, title })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+    showAlert(`✅ Text uploaded (${data.word_count.toLocaleString()} words)`, 'success');
+    setStatus('Ready', 'ok');
+    await refreshPapers();
+    await analyzeAuto(data.paper_id);
+  } catch (err) {
+    showAlert(`❌ ${err.message}`, 'error');
+    setStatus('Error', 'error');
+  }
+}
+
+// ── Auto-analyze after upload ─────────────────────────────────
+async function analyzeAuto(paperId) {
+  currentPaperId = paperId;
+  showView('analyze');
+  document.getElementById('analysis-content').innerHTML = `
+    <div class="loader">
+      <div class="spinner"></div>
+      <div class="loader-text">Analyzing...</div>
+      <div class="loader-steps">TextRank → LSA → LDA → NMF → Scorer</div>
+    </div>`;
+  setStatus('Analyzing...', 'loading');
+  try {
+    const res = await fetch(`${API}/analyze/${paperId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Analysis failed');
+    renderAnalysis(data);
+    setStatus('Analysis Complete', 'ok');
+  } catch (err) {
+    document.getElementById('analysis-content').innerHTML =
+      `<div class="alert alert-error">❌ Analysis failed: ${err.message}<br><br>Make sure the Flask backend is running: <code>python app.py</code></div>`;
+    setStatus('Error', 'error');
+  }
+}
+
+// ── Render Analysis ───────────────────────────────────────────
+function renderAnalysis(d) {
+  const scores = d.quality_scores;
+  const rec = scores.recommendation;
+  const recClass = rec.decision.startsWith('Accept') ? 'accept' : rec.decision.includes('Minor') ? 'revise' : 'reject';
+
+  const scoreColor = s => s >= 7 ? '#10b981' : s >= 5 ? '#f59e0b' : '#ef4444';
+  const scoreDims = ['novelty','clarity','methodology','evidence','impact','completeness','writing'];
+
+  const topicsHtml = (topics) => topics.slice(0,4).map(t => `
+    <div class="topic-row">
+      <div class="topic-num">T${t.topic_id}</div>
+      <div>
+        <div class="topic-label">${t.label}</div>
+        <div class="topic-words">${t.words.slice(0,7).join(' · ')}</div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('analysis-content').innerHTML = `
+    <!-- Verdict -->
+    <div class="verdict ${recClass}">
+      <div>
+        <div class="verdict-label">Review Decision</div>
+        <div class="verdict-text" style="color:${scoreColor(scores.overall)}">${rec.decision}</div>
+        <div style="font-size:12px; color:var(--text3); margin-top:4px;">${scores.paper_type} · ${scores.reading_difficulty} level · ${d.word_count.toLocaleString()} words</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px; color:var(--text3);">Overall Score</div>
+        <div style="font-size:40px; font-weight:800; font-family:var(--mono); color:${scoreColor(scores.overall)}">${scores.overall}</div>
+        <div style="font-size:11px; color:var(--text3);">/10</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" id="tab-summary" onclick="switchTab('summary')">📄 Summary</div>
+      <div class="tab" id="tab-scores" onclick="switchTab('scores')">⭐ Scores</div>
+      <div class="tab" id="tab-topics" onclick="switchTab('topics')">🗂 Topics</div>
+      <div class="tab" id="tab-meta" onclick="switchTab('meta')">📋 Metadata</div>
+    </div>
+
+    <!-- Summary Tab -->
+    <div id="tab-content-summary">
+      <div class="methods-row">
+        <span class="methods-label">Summary method:</span>
+        <div class="tabs" style="margin:0;">
+          <div class="tab active" id="sum-tab-tr" onclick="switchSumTab('textrank',${JSON.stringify(d).length > 10 ? "'"+d.paper_id+"'" : 'null'})">TextRank</div>
+          <div class="tab" id="sum-tab-lsa" onclick="switchSumTab('lsa','${d.paper_id}')">LSA</div>
+          <div class="tab" id="sum-tab-sec" onclick="switchSumTab('section','${d.paper_id}')">Section-Based</div>
+        </div>
+      </div>
+      <div id="summary-display">
+        <div class="summary-box">${d.summary.textrank || 'Summary not available'}</div>
+      </div>
+
+      <!-- Keywords -->
+      <div class="card" style="margin-top:20px;">
+        <div class="card-header"><div class="card-title">🔑 Key Terms (TF-IDF)</div></div>
+        <div class="card-body">
+          <div class="kw-cloud">
+            ${d.keywords.map(k => `<div class="kw-tag" title="Score: ${k.score}">${k.term}</div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Contributions & Limitations -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+        <div class="card">
+          <div class="card-header"><div class="card-title">💡 Contributions</div></div>
+          <div class="card-body">
+            ${d.contributions.length ? d.contributions.map((c,i) => `
+              <div class="list-item"><div class="list-num">${i+1}</div><div>${c}</div></div>`).join('')
+            : '<div style="color:var(--text3); font-size:13px;">No explicit contribution statements detected</div>'}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">⚠️ Limitations</div></div>
+          <div class="card-body">
+            ${d.limitations.length ? d.limitations.map((l,i) => `
+              <div class="list-item"><div class="list-num">${i+1}</div><div>${l}</div></div>`).join('')
+            : '<div style="color:var(--text3); font-size:13px;">No explicit limitation statements detected</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scores Tab -->
+    <div id="tab-content-scores" style="display:none;">
+      <div class="scores-grid">
+        ${scoreDims.map(dim => {
+          const s = scores[dim].score;
+          const c = scoreColor(s);
+          return `<div class="score-item">
+            <div class="score-label">${dim}</div>
+            <div class="score-value" style="color:${c}">${s}</div>
+            <div class="score-bar-track">
+              <div class="score-bar-fill" style="width:${s*10}%; background:${c}"></div>
+            </div>
+            <div class="score-note">${scores[dim].justification}</div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <!-- Strengths & Weaknesses -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px;">
+        <div class="card">
+          <div class="card-header"><div class="card-title">✅ Strengths</div></div>
+          <div class="card-body">
+            ${scores.strengths.map(s => `<div class="sw-item"><div class="sw-icon" style="color:var(--green)">✓</div><div>${s}</div></div>`).join('')}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">❌ Weaknesses</div></div>
+          <div class="card-body">
+            ${scores.weaknesses.map(w => `<div class="sw-item"><div class="sw-icon" style="color:var(--red)">✗</div><div>${w}</div></div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Topics Tab -->
+    <div id="tab-content-topics" style="display:none;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="card">
+          <div class="card-header"><div class="card-title">🗂 LDA Topics</div><div style="font-size:11px;color:var(--text3)">Latent Dirichlet Allocation</div></div>
+          <div class="card-body">${topicsHtml(d.topics.lda)}</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">🗂 NMF Topics</div><div style="font-size:11px;color:var(--text3)">Non-negative Matrix Factorization</div></div>
+          <div class="card-body">${topicsHtml(d.topics.nmf)}</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header"><div class="card-title">🌐 Domain Classification</div></div>
+        <div class="card-body">
+          ${d.domain_classification.map(dc => `
+            <div class="domain-row">
+              <div class="domain-name">${dc.domain}</div>
+              <div class="domain-bar-track"><div class="domain-bar-fill" style="width:${dc.confidence_pct}%"></div></div>
+              <div class="domain-pct">${dc.confidence_pct}%</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Meta Tab -->
+    <div id="tab-content-meta" style="display:none;">
+      <div class="card">
+        <div class="card-header"><div class="card-title">📋 Extracted Metadata</div></div>
+        <div class="card-body">
+          <div class="meta-table">
+            ${[
+              ['Title', d.metadata.title || '—'],
+              ['Authors', (d.metadata.authors || []).join(', ') || '—'],
+              ['Year', d.metadata.year || '—'],
+              ['DOI', d.metadata.doi || '—'],
+              ['Keywords', (d.metadata.keywords || []).join(', ') || '—'],
+              ['Words', d.word_count.toLocaleString()],
+              ['Sentences', d.sentence_count],
+              ['Sections', d.sections_detected.join(', ') || '—'],
+            ].map(([k,v]) => `<div class="meta-row"><div class="meta-key">${k}</div><div class="meta-val">${v}</div></div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-header"><div class="card-title">📑 Detected Sections</div></div>
+        <div class="card-body">
+          <div class="sections-chips">
+            ${d.sections_detected.map(s => `<div class="chip">${s}</div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Store summaries for tab switching
+  window._summaries = d.summary;
+  window._paperId = d.paper_id;
+}
+
+// ── Tab switching ─────────────────────────────────────────────
+function switchTab(name) {
+  ['summary','scores','topics','meta'].forEach(t => {
+    document.getElementById(`tab-content-${t}`).style.display = t === name ? 'block' : 'none';
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === name);
+  });
+}
+
+function switchSumTab(method, paperId) {
+  ['tr','lsa','sec'].forEach(t => {
+    const el = document.getElementById(`sum-tab-${t}`);
+    if(el) el.classList.remove('active');
+  });
+  const map = { textrank: 'tr', lsa: 'lsa', section: 'sec' };
+  const el = document.getElementById(`sum-tab-${map[method]}`);
+  if(el) el.classList.add('active');
+
+  const summaries = window._summaries || {};
+  const key = method === 'textrank' ? 'textrank' : method === 'lsa' ? 'lsa' : 'section_based';
+  const text = summaries[key] || 'Summary not available for this method';
+  document.getElementById('summary-display').innerHTML =
+    `<div class="summary-box">${text || 'Not available'}</div>`;
+}
+
+// ── Papers list ───────────────────────────────────────────────
+async function refreshPapers() {
+  try {
+    const res = await fetch(`${API}/papers`);
+    const data = await res.json();
+    papers = data.papers;
+    document.getElementById('paper-count').textContent = papers.length;
+
+    const list = document.getElementById('paper-list');
+    list.innerHTML = papers.length ? papers.map(p => `
+      <div class="paper-item ${p.id === currentPaperId ? 'active' : ''}" onclick="loadPaper('${p.id}')">
+        <div class="paper-name">
+          ${p.analyzed ? '<span class="paper-analyzed"></span>' : ''}${p.filename}
+        </div>
+        <div class="paper-meta">${p.word_count.toLocaleString()} words</div>
+      </div>`).join('')
+      : '<div style="font-size:12px;color:var(--text3);padding:8px">No papers loaded</div>';
+  } catch {}
+}
+
+async function loadPaper(id) {
+  await analyzeAuto(id);
+  refreshPapers();
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function showAlert(msg, type) {
+  const box = document.getElementById('alert-box');
+  box.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(() => { box.innerHTML = ''; }, 5000);
+}
+
+function setStatus(text, state) {
+  const el = document.getElementById('status-badge');
+  el.textContent = `● ${text}`;
+  el.style.background = state === 'loading' ? 'rgba(245,158,11,0.15)' :
+                         state === 'error'   ? 'rgba(239,68,68,0.15)' :
+                                              'rgba(16,185,129,0.15)';
+  el.style.color = state === 'loading' ? '#fbbf24' : state === 'error' ? '#f87171' : '#6ee7b7';
+  el.style.borderColor = state === 'loading' ? 'rgba(245,158,11,0.3)' : state === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)';
+}
+
+// ── Init ──────────────────────────────────────────────────────
+refreshPapers();
+setInterval(refreshPapers, 10000);
+</script>
+</body>
+</html>
